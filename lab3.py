@@ -26,10 +26,10 @@ class CS144Topo( Topo ):
     
     def __init__( self, *args, **kwargs ):
         Topo.__init__( self, *args, **kwargs )
-        server1 = self.addHost( 'server1' )
-        server2 = self.addHost( 'server2' )
-        router = self.addSwitch( 'sw0' )
-        client = self.addHost('client')
+        server1 = self.addHost( 'server1', protocols='OpenFlow10' )
+        server2 = self.addHost( 'server2', protocols='OpenFlow10' )
+        router = self.addSwitch( 'sw0', protocols='OpenFlow10' )
+        client = self.addHost('client', protocols='OpenFlow10')
         for h in server1, server2, client:
             self.addLink( h, router )
 
