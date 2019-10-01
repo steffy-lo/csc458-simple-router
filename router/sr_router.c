@@ -246,7 +246,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr)
 	/* Update TTL */
     ip_hdr->ip_ttl--;
     if(ip_hdr->ip_ttl == 0) {
-        send_icmp_msg(sr, packet, len, icmp_type_time_exceeded, (uint8_t)0);
+        /* Send ICMP Message Time Exceeded */
         return;
     }
 
