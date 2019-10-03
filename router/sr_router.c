@@ -168,9 +168,7 @@ void handle_arp(struct sr_instance *sr, sr_arp_hdr_t *arp_hdr, struct sr_if *inf
 
 			/* Set Ethernet Header */
 			sr_ethernet_hdr_t *reply_eth_hdr = (sr_ethernet_hdr_t *)arp_reply;
-			/* set destination MAC to be source MAC */
 			memcpy(reply_eth_hdr->ether_dhost, reply_eth_hdr->ether_shost, ETHER_ADDR_LEN);
-			/* set source MAC to be interface's MAC */
 			memcpy(reply_eth_hdr->ether_shost, inf->addr, ETHER_ADDR_LEN);
 
 			/* Set ARP Header */
@@ -278,7 +276,9 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
 
 void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr)
 {
-	/* Update TTL */
+	/* Sanity Check: Minimum Length & Checksum*/
+
+	/* Decrement TTL by 1 */
     ip_hdr->ip_ttl--;
     if(ip_hdr->ip_ttl == 0) {
         /* Send ICMP Message Time Exceeded */
@@ -297,8 +297,17 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr)
     }
     if (matching_address)
     {
-        /* Check the ARP cache, and handle that */
-    }
+        /* 
+		* Check the ARP cache for the next-hop MAC address corresponding to the next-hop IP 
+		* If it's there, send it
+		* Otherwise, send an ARP request for the next-hop IP (if one hasn’t been sent within the last second), and add the packet to the queue of packets waiting on this ARP request.
+		*/
+
+    } else {
+
+		/* Send ICMP Net unreachable */
+
+	}
     /* If we get here, then matching_address was null, then we drop the packet and send an error */
 }
 
@@ -307,7 +316,8 @@ void check_longest_prefix(struct sr_rt *cur_node, struct in_addr packet_dest, in
     /* Mask the packet's destination address to get the prefix */
     int masked_dest = packet_dest.s_addr & cur_node->mask.s_addr;
     /* If the prefix matches the entry's destination as well, it's a match */
-    if (masked_dest == cur_node->dest.s_addr & cur_node->mask.s_addr)
+	/* If doesn't work try: if (masked_dest == cur_node->dest.s_addr & cur_node->mask.s_addr) instead */
+    if (masked_dest == cur_node->dest.s_addr)
     {
         /* If this is true then we know that this match is our best match (since the number of bits compared was higher)
          Save the data for comparison later */
