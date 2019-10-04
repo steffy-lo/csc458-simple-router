@@ -11,6 +11,67 @@
 #include "sr_if.h"
 #include "sr_protocol.h"
 
+
+void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
+	time_t now;
+    time(&now);
+    if (difftime(now, req->sent) > 1.0) {
+        printf("Handling ARP requests...");
+		if (req->times_sent >= 5) {
+				struct sr_packet *queued_pkts = req->packets;
+				/* Send ICMP Host Unreachable to source address of all packets waiting on this request */
+				printf("Resent 5 times: Send ICMP Host Unreachable.\n");
+				while (queued_pkts)
+				{
+					struct sr_if *inf = sr_get_interface(sr, queued_pkts->iface);
+					if (inf)
+						send_icmp_message(sr, queued_pkts->buf, inf, 3, 1);
+					queued_pkts = queued_pkts->next;
+				}
+				sr_arpreq_destroy(&sr->cache, req);
+			
+		} else {
+            struct sr_if* inf = sr_get_interface(sr, req->packets->iface);
+            if(!inf) {
+                fprintf(stderr, "handle_arpreq: failed to get outgoing interface.\n");
+                return;
+            }
+            /* Construct ARP request */
+            int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t);
+            uint8_t* arp_req = malloc(len);
+
+            /* Set Ethernet Header */
+            sr_ethernet_hdr_t* arpreq_eth_hdr = (sr_ethernet_hdr_t*)arp_req;
+            /* Destination MAC: FF-FF-FF-FF-FF-FF */
+            memset(arpreq_eth_hdr->ether_dhost, 0xFF, ETHER_ADDR_LEN);
+            memcpy(arpreq_eth_hdr->ether_shost, inf->addr, ETHER_ADDR_LEN);
+            arpreq_eth_hdr->ether_type = htons(ethertype_arp);
+
+            /* Construct ARP header */
+            sr_arp_hdr_t* arp_hdr = (sr_arp_hdr_t*)(arp_req + sizeof(sr_ethernet_hdr_t));
+            arp_hdr->ar_hrd = htons(arp_hrd_ethernet);
+            arp_hdr->ar_pro = htons(ethertype_ip);
+            arp_hdr->ar_hln = ETHER_ADDR_LEN;
+            arp_hdr->ar_pln = sizeof(uint32_t);
+            arp_hdr->ar_op = htons(arp_op_request);
+
+            /* Set sender MAC to interface's MAC and sender IP to interface's IP*/
+            memcpy(arp_hdr->ar_sha, inf->addr, ETHER_ADDR_LEN);
+            arp_hdr->ar_sip = inf->ip;
+            /* Set destination MAC to 00-00-00-00-00-00 */
+            memset(arp_hdr->ar_tha, 0x00, ETHER_ADDR_LEN);
+            /* Set destination IP to req's target IP */
+            arp_hdr->ar_tip = req->ip;
+
+            /* Send ARP request */
+            printf("send ARP request.\n");
+            sr_send_packet(sr, arp_req, len, inf->name);
+            free(arp_req);
+			req->sent = now;
+			req->times_sent++;
+		}
+	}
+}
 /* 
   This function gets called every second. For each request sent out, we keep
   checking whether we should resend an request or destroy the arp request.
@@ -18,6 +79,9 @@
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
     /* Fill this in */
+	struct sr_arpreq *req;
+    for (req = sr->cache.requests; req; req = req->next)
+        handle_arpreq(req, sr);
 }
 
 /* You should not need to touch the rest of this code. */
