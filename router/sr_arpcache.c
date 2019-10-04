@@ -29,7 +29,7 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
 					queued_pkts = queued_pkts->next;
 				}
 				sr_arpreq_destroy(&sr->cache, req);
-			
+
 		} else {
             struct sr_if* inf = sr_get_interface(sr, req->packets->iface);
             if(!inf) {
@@ -72,7 +72,7 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
 		}
 	}
 }
-/* 
+/*
   This function gets called every second. For each request sent out, we keep
   checking whether we should resend an request or destroy the arp request.
   See the comments in the header file for an idea of what it should look like.
