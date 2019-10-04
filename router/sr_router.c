@@ -130,6 +130,11 @@ void sr_handlepacket(struct sr_instance *sr,
     else if (ethertype(packet) == ethertype_ip)
     {
         /* Handle IP Packet */
+		if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t))
+        {
+            fprintf(stderr, "sr_handlepacket: IP packet doesn't meet minimum length.\n");
+            return;
+        }
 
         /* IP header is after the Ethernet header */
         sr_ip_hdr_t *ip_hdr = (sr_arp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
@@ -140,12 +145,12 @@ void sr_handlepacket(struct sr_instance *sr,
         {
             if (if_walker->ip == ip_hdr->ip_dst)
             {
-				handle_ip(sr, ip_hdr, if_walker, packet)
+				handle_ip(sr, ip_hdr, if_walker, packet, len)
                 return;
             }
             if_walker = if_walker->next;
         }
-        forward_ip(sr, ip_hdr);
+        forward_ip(sr, ip_hdr, packet, if_walker);
     }
     else
     {
@@ -219,18 +224,23 @@ void handle_arp(struct sr_instance *sr, sr_arp_hdr_t *arp_hdr, struct sr_if *inf
 		}
     }
 }
-void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, uint8_t *packet)
+void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, uint8_t *packet, unsigned int len)
 {
 	/* Verify checksum here*/
 
     if (ip_hdr->ip_p == ip_protocol_icmp) {
         printf("An ICMP message.\n");
 
+		if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t)) {
+			fprintf(stderr, "handle_ip: ICMP header doesn't meet minimum length.\n");
+            return;
+		}
+
 		/* ICMP header is after the IP header */
         sr_icmp_hdr_t* icmp_hdr = (sr_icmp_hdr_t*)(ip_hdr + sizeof(sr_ip_hdr_t));
 
         /* if it's an ICMP echo request, send echo reply */
-        if(icmp_hdr->icmp_type == icmp_type_echo_request) {
+        if(icmp_hdr->icmp_type == 0) {
 			/* Construct ICMP echo reply */
 			send_icmp_message(sr, packet, inf, 0, 0);
         }
@@ -274,7 +284,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
 	free(icmp_packet);
 }
 
-void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr)
+void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, uint8_t *packet)
 {
 	/* Sanity Check: Minimum Length & Checksum*/
 
@@ -282,6 +292,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr)
     ip_hdr->ip_ttl--;
     if(ip_hdr->ip_ttl == 0) {
         /* Send ICMP Message Time Exceeded */
+		send_icmp_message(sr, packet, inf, 11, 0);
         return;
     }
 
@@ -304,7 +315,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr)
 		*/
 
     } else {
-
+		send_icmp_message(sr, packet, inf, 3, 0);
 		/* Send ICMP Net unreachable */
 
 	}
