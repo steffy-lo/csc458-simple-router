@@ -17,10 +17,8 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
     time(&now);
     if (difftime(now, req->sent) > 1.0) {
 		if (req->times_sent >= 5) {
-			struct sr_arpreq *queued = sr_arpcache_insert(&sr->cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
-			if (queued)
-			{
-				struct sr_packet *queued_pkts = queued->packets;
+			
+				struct sr_packet *queued_pkts = req->packets;
 				/* Send ICMP Host Unreachable to source address of all packets waiting on this request */
 				while (queued_pkts)
 				{
@@ -29,10 +27,10 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
 						send_icmp_message(sr, queued_pkts->buf, inf, 3, 1);
 					queued_pkts = queued_pkts->next;
 				}
-				sr_arpreq_destroy(&sr->cache, queued);
-			}
+				sr_arpreq_destroy(&sr->cache, req);
+			
 		} else {
-            struct sr_if* inf = sr_get_interface(sr, request->packets->iface);
+            struct sr_if* inf = sr_get_interface(sr, req->packets->iface);
             if(!inf) {
                 fprintf(stderr, "handle_arpreq: failed to get outgoing interface.\n");
                 return;
@@ -81,7 +79,7 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
     /* Fill this in */
 	struct sr_arpreq *req;
-    for (req = sr->cache; req; req = req->next)
+    for (req = &sr->cache; req; req = req->next)
         handle_arpreq(req, sr);
 }
 

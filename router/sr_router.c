@@ -131,6 +131,7 @@ void sr_handlepacket(struct sr_instance *sr,
     /* It's a IP Packet type*/
     else if (ethertype(packet) == ethertype_ip)
     {
+	printf("this is an ip packet");
         /* Handle IP Packet */
 		if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t))
         {
@@ -156,12 +157,12 @@ void sr_handlepacket(struct sr_instance *sr,
         {
             if (if_walker->ip == ip_hdr->ip_dst)
             {
-				        handle_ip(sr, ip_hdr, if_walker, packet, len)
+				        handle_ip(sr, ip_hdr, if_walker, packet, len);
                 return;
             }
             if_walker = if_walker->next;
         }
-        forward_ip(sr, ip_hdr, eth_hdr, packet, len);
+        forward_ip(sr, ip_hdr, eth_hdr, packet, len, sr->if_list);
     }
     else
     {
@@ -298,7 +299,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     free(icmp_packet);
 }
 
-void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *eth_hdr, uint8_t *packet, unsigned int len)
+void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *eth_hdr, uint8_t *packet, unsigned int len, struct sr_if *src_inf)
 {
     /* Sanity Check: Minimum Length & Checksum*/
 
@@ -307,7 +308,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
     if (ip_hdr->ip_ttl == 0)
     {
         /* Send ICMP Message Time Exceeded */
-		send_icmp_message(sr, packet, inf, 11, 0);
+		send_icmp_message(sr, packet, src_inf, 11, 0);
         return;
     }
 
@@ -348,11 +349,8 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
             handle_arpreq(req, sr);
         }
     }
-    else
-    {
-
-    } else {
-		send_icmp_message(sr, packet, inf, 3, 0);
+    else {
+		send_icmp_message(sr, packet, src_inf, 3, 0);
 		/* Send ICMP Net unreachable */
 
 	}
