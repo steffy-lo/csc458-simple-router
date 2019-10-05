@@ -81,7 +81,7 @@ void sr_handlepacket(struct sr_instance *sr,
 
     if (len < sizeof(sr_ethernet_hdr_t))
     {
-        fprintf(stderr, "sr_handlepacket: Ethernet packet doesn't meet minimum length.\n");
+        printf("sr_handlepacket: Ethernet packet doesn't meet minimum length.\n");
         return;
     }
 
@@ -92,7 +92,7 @@ void sr_handlepacket(struct sr_instance *sr,
     {
         if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t))
         {
-            fprintf(stderr, "sr_handlepacket: ARP packet doesn't meet minimum length.\n");
+            printf("sr_handlepacket: ARP packet doesn't meet minimum length.\n");
             return;
         }
 
@@ -102,14 +102,14 @@ void sr_handlepacket(struct sr_instance *sr,
         /* Check hardware format code */
         if (ntohs(arp_hdr->ar_hrd) != arp_hrd_ethernet)
         {
-            fprintf(stderr, "sr_handlepacket: unknown hardware address format.\n");
+            printf("sr_handlepacket: unknown hardware address format.\n");
             return;
         }
 
         /* Check if protocol type is valid */
         if (ntohs(arp_hdr->ar_pro) != ethertype_ip)
         {
-            fprintf(stderr, "sr_handlepacket: invalid protocol type.\n");
+            printf("sr_handlepacket: invalid protocol type.\n");
             return;
         }
 
@@ -128,16 +128,16 @@ void sr_handlepacket(struct sr_instance *sr,
             }
             if_walker = if_walker->next;
         }
-        fprintf(stderr, "sr_handlepacket: target IP cannot be found.\n");
+        printf("sr_handlepacket: target IP cannot be found.\n");
     }
     /* It's a IP Packet type*/
     else if (ethertype(packet) == ethertype_ip)
     {
-	    printf("This is an IP packet");
+	    printf("This is an IP packet.\n");
         /* Handle IP Packet */
 		if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t))
         {
-            fprintf(stderr, "sr_handlepacket: IP packet doesn't meet minimum length.\n");
+            printf("sr_handlepacket: IP packet doesn't meet minimum length.\n");
             return;
         }
 
@@ -149,7 +149,7 @@ void sr_handlepacket(struct sr_instance *sr,
         ip_hdr->ip_sum = 0;
         if (checksum != cksum(ip_hdr, sizeof(sr_ip_hdr_t)))
         {
-            fprintf(stderr, "sr_handlepacket: IP packet has incorrect checksum.\n");
+            printf("sr_handlepacket: IP packet has incorrect checksum.\n");
             return;
         }
 
@@ -159,12 +159,14 @@ void sr_handlepacket(struct sr_instance *sr,
         {
             if (if_walker->ip == ip_hdr->ip_dst)
             {
-				        handle_ip(sr, ip_hdr, if_walker, packet, len);
+                handle_ip(sr, ip_hdr, if_walker, packet, len);
                 return;
             }
             if_walker = if_walker->next;
         }
         forward_ip(sr, ip_hdr, eth_hdr, packet, len, sr->if_list);
+    } else {
+        printf("Drop packet.\n");
     }
 
 } /* end sr_ForwardPacket */
@@ -177,13 +179,14 @@ void handle_arp(struct sr_instance *sr, sr_arp_hdr_t *arp_hdr, uint8_t *packet, 
     {
         printf("Received an ARP request\n");
         /* Construct ARP reply */
-        unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ethernet_hdr_t);
+        unsigned int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t);
         uint8_t *arp_reply = malloc(len);
 
         /* Set Ethernet Header */
         sr_ethernet_hdr_t *reply_eth_hdr = (sr_ethernet_hdr_t *)arp_reply;
         memcpy(reply_eth_hdr->ether_dhost, ((sr_ethernet_hdr_t *)packet)->ether_shost, ETHER_ADDR_LEN);
         memcpy(reply_eth_hdr->ether_shost, inf->addr, ETHER_ADDR_LEN);
+        reply_eth_hdr->ether_type = htons(ethertype_arp);
 
         /* Set ARP Header */
         sr_arp_hdr_t *reply_arp_hdr = (sr_arp_hdr_t *)(arp_reply + sizeof(sr_ethernet_hdr_t));
@@ -201,8 +204,9 @@ void handle_arp(struct sr_instance *sr, sr_arp_hdr_t *arp_hdr, uint8_t *packet, 
         /* set target IP to be the packet's sender IP */
         reply_arp_hdr->ar_tip = arp_hdr->ar_sip;
 
-        printf("Send ARP reply to: ");
-        printf("%s\n",inf->name);
+        print_hdr_eth(reply_eth_hdr);
+        print_hdr_arp(reply_arp_hdr);
+
         sr_send_packet(sr, arp_reply, len, inf->name);
         free(arp_reply);
         break;
@@ -243,7 +247,7 @@ void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, u
         printf("An ICMP message.\n");
 
 		if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t)) {
-			fprintf(stderr, "handle_ip: ICMP header doesn't meet minimum length.\n");
+			printf("handle_ip: ICMP header doesn't meet minimum length.\n");
             return;
 		}
 
