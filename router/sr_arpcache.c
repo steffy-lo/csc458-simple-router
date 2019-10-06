@@ -16,22 +16,22 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
 	time_t now;
     time(&now);
     if (difftime(now, req->sent) > 1.0) {
-        printf("Handling ARP requests...");
+        printf("Handling ARP requests...\n");
 		if (req->times_sent >= 5) {
-				struct sr_packet *queued_pkts = req->packets;
-				/* Send ICMP Host Unreachable to source address of all packets waiting on this request */
-				printf("Resent 5 times: Send ICMP Host Unreachable.\n");
-				while (queued_pkts)
-				{
-					struct sr_if *inf = sr_get_interface(sr, queued_pkts->iface);
-					if (inf)
-						send_icmp_message(sr, queued_pkts->buf, inf, 3, 1);
-					queued_pkts = queued_pkts->next;
-				}
-				sr_arpreq_destroy(&sr->cache, req);
+            struct sr_packet *queued_pkts = req->packets;
+            /* Send ICMP Host Unreachable to source address of all packets waiting on this request */
+            printf("Resent 5 times: Send ICMP Host Unreachable.\n");
+            while (queued_pkts)
+            {
+                struct sr_if *inf = sr_get_interface(sr, queued_pkts->iface);
+                if (inf)
+                    send_icmp_message(sr, queued_pkts->buf, inf, 3, 1);
+                queued_pkts = queued_pkts->next;
+            }
+            sr_arpreq_destroy(&sr->cache, req);
 
 		} else {
-            struct sr_if* inf = sr_get_interface(sr, req->packets->iface);
+            struct sr_if* inf = sr_get_interface(sr, (req->packets)->iface);
             if(!inf) {
                 fprintf(stderr, "handle_arpreq: failed to get outgoing interface.\n");
                 return;
@@ -41,11 +41,11 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
             uint8_t* arp_req = malloc(len);
 
             /* Set Ethernet Header */
-            sr_ethernet_hdr_t* arpreq_eth_hdr = (sr_ethernet_hdr_t*)arp_req;
+            sr_ethernet_hdr_t* eth_hdr = (sr_ethernet_hdr_t*)arp_req;
             /* Destination MAC: FF-FF-FF-FF-FF-FF */
-            memset(arpreq_eth_hdr->ether_dhost, 0xFF, ETHER_ADDR_LEN);
-            memcpy(arpreq_eth_hdr->ether_shost, inf->addr, ETHER_ADDR_LEN);
-            arpreq_eth_hdr->ether_type = htons(ethertype_arp);
+            memset(eth_hdr->ether_dhost, 0xFF, ETHER_ADDR_LEN);
+            memcpy(eth_hdr->ether_shost, inf->addr, ETHER_ADDR_LEN);
+            eth_hdr->ether_type = htons(ethertype_arp);
 
             /* Construct ARP header */
             sr_arp_hdr_t* arp_hdr = (sr_arp_hdr_t*)(arp_req + sizeof(sr_ethernet_hdr_t));
@@ -62,6 +62,11 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
             memset(arp_hdr->ar_tha, 0x00, ETHER_ADDR_LEN);
             /* Set destination IP to req's target IP */
             arp_hdr->ar_tip = req->ip;
+
+            printf("------------ ARP Request ------------------\n");
+            print_hdr_eth(eth_hdr);
+            print_hdr_arp(arp_hdr);
+            printf("-------------------------------------------\n");
 
             /* Send ARP request */
             printf("send ARP request.\n");

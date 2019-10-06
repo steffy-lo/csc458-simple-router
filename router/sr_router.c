@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "sr_if.h"
 #include "sr_rt.h"
@@ -113,6 +114,11 @@ void sr_handlepacket(struct sr_instance *sr,
             return;
         }
 
+        printf("------------ It's an ARP Packet ----------------\n");
+        print_hdr_eth(packet);
+        print_hdr_arp(packet + sizeof(sr_ethernet_hdr_t));
+        printf("------------------------------------------------\n");
+
         /*
          * For ARP Requests: Send an ARP reply if the target IP address is one of your router’s IP addresses.
          * For ARP Replies: Cache the entry if the target IP address is one of your router’s IP addresses.
@@ -133,7 +139,6 @@ void sr_handlepacket(struct sr_instance *sr,
     /* It's a IP Packet type*/
     else if (ethertype(packet) == ethertype_ip)
     {
-	    printf("This is an IP packet.\n");
         /* Handle IP Packet */
 		if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t))
         {
@@ -142,7 +147,12 @@ void sr_handlepacket(struct sr_instance *sr,
         }
 
         /* IP header is after the Ethernet header */
-        sr_ip_hdr_t *ip_hdr = (sr_arp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
+        sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
+
+        printf("----------- It's an IP Packet ------------\n");
+        print_hdr_eth(packet);
+        print_hdr_ip(packet + sizeof(sr_ethernet_hdr_t));
+        printf("------------------------------------------\n");
 
         /* Verify checksum */
         uint16_t checksum = ip_hdr->ip_sum;
@@ -165,8 +175,6 @@ void sr_handlepacket(struct sr_instance *sr,
             if_walker = if_walker->next;
         }
         forward_ip(sr, ip_hdr, eth_hdr, packet, len, sr->if_list);
-    } else {
-        printf("Drop packet.\n");
     }
 
 } /* end sr_ForwardPacket */
@@ -204,8 +212,10 @@ void handle_arp(struct sr_instance *sr, sr_arp_hdr_t *arp_hdr, uint8_t *packet, 
         /* set target IP to be the packet's sender IP */
         reply_arp_hdr->ar_tip = arp_hdr->ar_sip;
 
-        print_hdr_eth(reply_eth_hdr);
-        print_hdr_arp(reply_arp_hdr);
+        printf("------------ ARP Reply ------------------\n");
+        print_hdr_eth(arp_reply);
+        print_hdr_arp(arp_reply + sizeof(sr_ethernet_hdr_t));
+        printf("-----------------------------------------\n");
 
         sr_send_packet(sr, arp_reply, len, inf->name);
         free(arp_reply);
@@ -240,8 +250,6 @@ void handle_arp(struct sr_instance *sr, sr_arp_hdr_t *arp_hdr, uint8_t *packet, 
 }
 void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, uint8_t *packet, unsigned int len)
 {
-    /* Verify checksum here*/
-
     if (ip_hdr->ip_p == ip_protocol_icmp)
     {
         printf("An ICMP message.\n");
@@ -271,7 +279,7 @@ void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, u
 void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, uint8_t icmp_type, uint8_t icmp_code)
 {
     /* Construct ICMP Message */
-    int len = sizeof(sr_ethernet_hdr_t);
+    int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t);
     uint8_t *icmp_packet = malloc(len);
     memcpy(icmp_packet, packet, len);
 
@@ -297,6 +305,12 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     else if (icmp_type == 3)
         icmp_hdr->icmp_sum = cksum(icmp_hdr, sizeof(sr_icmp_t3_hdr_t));
 
+    printf("----------- Send ICMP Message ------------\n");
+    print_hdr_eth(icmp_packet);
+    print_hdr_ip(icmp_packet + sizeof(sr_ethernet_hdr_t));
+    print_hdr_icmp(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+    printf("------------------------------------------\n");
+
     sr_send_packet(sr, icmp_packet, len, inf->name);
     free(icmp_packet);
 }
@@ -310,11 +324,13 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
     if (ip_hdr->ip_ttl == 0)
     {
         /* Send ICMP Message Time Exceeded */
+        printf("ICMP Message Time Exceeded.\n");
 		send_icmp_message(sr, packet, src_inf, 11, 0);
         return;
     }
 
     /* Recompute checksum and add back in */
+    ip_hdr->ip_sum = 0;
     ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
 
     /* Check the routing table and compare the values to the destination IP address */
@@ -326,10 +342,13 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
     while (cur_node->next)
     {
         /* Compare the packet destination and the destination in the routing table node, record how many bits match */
+        printf("Checking Longest Prefix...\n");
         check_longest_prefix(cur_node, ip_hdr->ip_dst, &matching_mask, &matching_address, inf);
+        cur_node = cur_node->next;
     }
     if (matching_address)
     {
+        printf("Longest Prefix Matched!\n");
         /*
 		* Check the ARP cache for the next-hop MAC address corresponding to the next-hop IP
 		* If it's there, send it
@@ -339,6 +358,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
         /* Update the destination and source information for this package */
         if (matching_entry)
         {
+            printf("There is a macthing entry.\n");
             memcpy(eth_hdr->ether_dhost, matching_entry->mac, ETHER_ADDR_LEN);
             memcpy(eth_hdr->ether_shost, sr_get_interface(sr, inf)->addr, ETHER_ADDR_LEN);
             sr_send_packet(sr, packet, len, inf);
@@ -347,14 +367,15 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
         else
         {
             /* There was no entry in the ARP cache */
-            struct arp_req *req = sr_arpcache_queuereq(&sr->cache, matching_address, packet, len, inf);
+            printf("There was no entry in the ARP cache.\n");
+            struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, matching_address, packet, len, inf);
             handle_arpreq(req, sr);
         }
     }
     else {
+        /* Send ICMP Net unreachable */
+        printf("ICMP Net Unreachable.\n");
 		send_icmp_message(sr, packet, src_inf, 3, 0);
-		/* Send ICMP Net unreachable */
-
 	}
     /* If we get here, then matching_address was null, then we drop the packet and send an error */
 }
@@ -365,7 +386,7 @@ void check_longest_prefix(struct sr_rt *cur_node, uint32_t packet_dest, uint32_t
     int masked_dest = packet_dest & cur_node->mask.s_addr;
     /* If the prefix matches the entry's destination as well, it's a match */
     /* If doesn't work try: if (masked_dest == cur_node->dest.s_addr & cur_node->mask.s_addr) instead */
-    if (masked_dest == cur_node->dest.s_addr & cur_node->mask.s_addr)
+    if (masked_dest == (cur_node->dest.s_addr & cur_node->mask.s_addr))
     {
         /* If this is true then we know that this match is our best match (since the number of bits compared was higher)
          Save the data for comparison later */
