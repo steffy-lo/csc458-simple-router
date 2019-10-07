@@ -169,7 +169,7 @@ void sr_handlepacket(struct sr_instance *sr,
         {
             if (if_walker->ip == ip_hdr->ip_dst)
             {
-                handle_ip(sr, ip_hdr, if_walker, packet, len);
+                handle_ip(sr, ip_hdr, interface, packet, len);
                 return;
             }
             if_walker = if_walker->next;
