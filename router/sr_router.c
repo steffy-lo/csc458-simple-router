@@ -267,7 +267,7 @@ void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, u
 
 
         /* if it's an ICMP echo request, send echo reply */
-        if(icmp_hdr->icmp_type == 0) {
+        if(icmp_hdr->icmp_type == 8) {
 			/* Construct ICMP echo reply */
 			send_icmp_message(sr, packet, inf, 0, 0);
         }
