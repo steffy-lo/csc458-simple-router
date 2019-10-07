@@ -167,7 +167,9 @@ void sr_handlepacket(struct sr_instance *sr,
         {
             if (if_walker->ip == ip_hdr->ip_dst)
             {
-                handle_ip(sr, ip_hdr, interface, packet, len);
+                /* Get the struct from the name */
+                struct sr_if *src_inf = sr_get_interface(sr, interface);
+                handle_ip(sr, ip_hdr, src_inf, packet, len);
                 return;
             }
             if_walker = if_walker->next;
