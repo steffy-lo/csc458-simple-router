@@ -78,6 +78,8 @@ void sr_handlepacket(struct sr_instance *sr,
     assert(packet);
     assert(interface);
 
+    printf("*** -> Received packet of length %d \n",len);
+
     if (len < sizeof(sr_ethernet_hdr_t))
     {
         printf("sr_handlepacket: Ethernet packet doesn't meet minimum length.\n");
