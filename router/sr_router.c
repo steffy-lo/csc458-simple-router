@@ -125,7 +125,7 @@ void sr_handlepacket(struct sr_instance *sr,
          * Check if target IP is one of router's IP addresses.
          * */
         struct sr_if *if_walker = sr->if_list;
-        while (if_walker->next)
+        while (if_walker)
         {
             if (if_walker->ip == arp_hdr->ar_tip)
             {
