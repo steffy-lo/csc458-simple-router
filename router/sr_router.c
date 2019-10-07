@@ -271,21 +271,20 @@ void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, u
         /* if it's an ICMP echo request, send echo reply */
         if(icmp_hdr->icmp_type == 8) {
 			/* Construct ICMP echo reply */
-			send_icmp_message(sr, packet, inf, 0, 0);
+			send_icmp_message(sr, packet, inf, 0, 0, len);
         }
     }
     else
     {
         printf("A TCP/UDP message.\n");
         /* Send ICMP type 3 code 3: Port Unreachable */
-        send_icmp_message(sr, packet, inf, 3, 3);
+        send_icmp_message(sr, packet, inf, 3, 3, len);
     }
 }
 
-void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, uint8_t icmp_type, uint8_t icmp_code)
+void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, uint8_t icmp_type, uint8_t icmp_code, unsigned int len)
 {
     /* Construct ICMP Message */
-    int len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t);
     uint8_t *icmp_packet = malloc(len);
     memcpy(icmp_packet, packet, len);
 
@@ -333,7 +332,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
     {
         /* Send ICMP Message Time Exceeded */
         printf("ICMP Message Time Exceeded.\n");
-		send_icmp_message(sr, packet, src_inf, 11, 0);
+		send_icmp_message(sr, packet, src_inf, 11, 0, len);
         return;
     }
 
@@ -383,7 +382,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
     else {
         /* Send ICMP Net unreachable */
         printf("ICMP Net Unreachable.\n");
-		send_icmp_message(sr, packet, src_inf, 3, 0);
+		send_icmp_message(sr, packet, src_inf, 3, 0, len);
 	}
     /* If we get here, then matching_address was null, then we drop the packet and send an error */
 }
