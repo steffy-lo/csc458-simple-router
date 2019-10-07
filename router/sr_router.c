@@ -78,8 +78,6 @@ void sr_handlepacket(struct sr_instance *sr,
     assert(packet);
     assert(interface);
 
-    printf("*** -> Received packet of length %d \n", len);
-
     if (len < sizeof(sr_ethernet_hdr_t))
     {
         printf("sr_handlepacket: Ethernet packet doesn't meet minimum length.\n");
@@ -125,7 +123,7 @@ void sr_handlepacket(struct sr_instance *sr,
          * Check if target IP is one of router's IP addresses.
          * */
         struct sr_if *if_walker = sr->if_list;
-        while (if_walker->next)
+        while (if_walker)
         {
             if (if_walker->ip == arp_hdr->ar_tip)
             {
@@ -165,7 +163,7 @@ void sr_handlepacket(struct sr_instance *sr,
 
         /* Check if the IP address matches the current router's IP addresses */
         struct sr_if *if_walker = sr->if_list;
-        while (if_walker->next)
+        while (if_walker)
         {
             if (if_walker->ip == ip_hdr->ip_dst)
             {
@@ -339,7 +337,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
     uint32_t matching_address;
     char inf[sr_IFACE_NAMELEN];
 
-    while (cur_node->next)
+    while (cur_node)
     {
         /* Compare the packet destination and the destination in the routing table node, record how many bits match */
         printf("Checking Longest Prefix...\n");

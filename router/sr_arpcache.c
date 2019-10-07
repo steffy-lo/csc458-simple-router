@@ -10,6 +10,7 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_protocol.h"
+#include "sr_utils.h"
 
 
 void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
@@ -63,9 +64,9 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
             /* Set destination IP to req's target IP */
             arp_hdr->ar_tip = req->ip;
 
-            printf("------------ ARP Request ------------------\n");
-            print_hdr_eth(eth_hdr);
-            print_hdr_arp(arp_hdr);
+            printf("------------ Send ARP Request ------------------\n");
+            print_hdr_eth(arp_req);
+            print_hdr_arp(arp_req + sizeof(sr_ethernet_hdr_t));
             printf("-------------------------------------------\n");
 
             /* Send ARP request */
