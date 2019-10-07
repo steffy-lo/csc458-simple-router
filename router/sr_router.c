@@ -274,7 +274,7 @@ void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, u
 			send_icmp_message(sr, packet, inf, 0, 0, len);
         }
     }
-    else
+    else if (ip_hdr->ip_p == ip)
     {
         printf("A TCP/UDP message.\n");
         /* Send ICMP type 3 code 3: Port Unreachable */
@@ -297,6 +297,8 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     uint32_t temp = ip_hdr->ip_src;
     ip_hdr->ip_src = ip_hdr->ip_dst;
     ip_hdr->ip_dst = temp;
+    ip_hdr->ip_ttl = 64;
+    ip_hdr->ip_sum = 0;
     ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
 
     /* Modify ICMP header */
@@ -315,7 +317,13 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     print_hdr_icmp(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     printf("------------------------------------------\n");
 
-    sr_send_packet(sr, icmp_packet, len, inf->name);
+    struct sr_arpentry * entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
+    if (entry) {
+        sr_send_packet(sr, icmp_packet, len, inf->name);
+    } else {
+        struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, icmp_packet, len, inf->name);
+        handle_arpreq(req, sr);
+    }
     free(icmp_packet);
 }
 
