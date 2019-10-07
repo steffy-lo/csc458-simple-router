@@ -165,7 +165,7 @@ void sr_handlepacket(struct sr_instance *sr,
 
         /* Check if the IP address matches the current router's IP addresses */
         struct sr_if *if_walker = sr->if_list;
-        while (if_walker->next)
+        while (if_walker)
         {
             if (if_walker->ip == ip_hdr->ip_dst)
             {
