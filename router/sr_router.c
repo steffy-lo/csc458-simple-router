@@ -339,7 +339,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
     uint32_t matching_address;
     char inf[sr_IFACE_NAMELEN];
 
-    while (cur_node->next)
+    while (cur_node)
     {
         /* Compare the packet destination and the destination in the routing table node, record how many bits match */
         printf("Checking Longest Prefix...\n");
