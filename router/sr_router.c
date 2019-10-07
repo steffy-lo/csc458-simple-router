@@ -261,6 +261,10 @@ void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, u
 
 		/* ICMP header is after the IP header */
         sr_icmp_hdr_t* icmp_hdr = (sr_icmp_hdr_t*)(ip_hdr + sizeof(sr_ip_hdr_t));
+         printf("------------ ICMP HDR ------------------\n");
+        print_hdr_icmp(icmp_hdr);
+        printf("-----------------------------------------\n");
+
 
         /* if it's an ICMP echo request, send echo reply */
         if(icmp_hdr->icmp_type == 0) {
