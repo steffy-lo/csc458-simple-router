@@ -296,14 +296,16 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     uint32_t temp = ip_hdr->ip_src;
     ip_hdr->ip_src = ip_hdr->ip_dst;
     ip_hdr->ip_dst = temp;
-    memset(&(ip_hdr->ip_sum), 0, sizeof(uint16_t));
+    
+    /*memset(&(ip_hdr->ip_sum), 0, sizeof(uint16_t));*/
     ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
 
     /* Modify ICMP header */
     sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     icmp_hdr->icmp_type = icmp_type;
     icmp_hdr->icmp_code = icmp_code;
-    memset(&(icmp_hdr->icmp_sum), 0, sizeof(uint16_t));
+    /*memset(&(icmp_hdr->icmp_sum), 0, sizeof(uint16_t));*/
+    icmp_hdr->icmp_sum = 0;
     if (icmp_type == 0)
         icmp_hdr->icmp_sum = cksum(icmp_hdr, sizeof(sr_icmp_hdr_t));
     else if (icmp_type == 3)
