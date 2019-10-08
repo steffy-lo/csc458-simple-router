@@ -82,7 +82,7 @@ void sr_handlepacket(struct sr_instance *sr,
 
     if (len < sizeof(sr_ethernet_hdr_t))
     {
-        printf("sr_handlepacket: Ethernet packet doesn't meet minimum length.\n");
+        fprintf(stderr, "sr_handlepacket: Ethernet packet doesn't meet minimum length.\n");
         return;
     }
 
@@ -93,24 +93,7 @@ void sr_handlepacket(struct sr_instance *sr,
     {
         if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t))
         {
-            printf("sr_handlepacket: ARP packet doesn't meet minimum length.\n");
-            return;
-        }
-
-        /* ARP header is after the Ethernet header */
-        sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
-
-        /* Check hardware format code */
-        if (ntohs(arp_hdr->ar_hrd) != arp_hrd_ethernet)
-        {
-            printf("sr_handlepacket: unknown hardware address format.\n");
-            return;
-        }
-
-        /* Check if protocol type is valid */
-        if (ntohs(arp_hdr->ar_pro) != ethertype_ip)
-        {
-            printf("sr_handlepacket: invalid protocol type.\n");
+            fprintf(stderr, "sr_handlepacket: ARP packet doesn't meet minimum length.\n");
             return;
         }
 
@@ -306,7 +289,6 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     ip_hdr->ip_sum = 0;
     ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
     ip_hdr->ip_p = ip_protocol_icmp;
-
     if (icmp_type == 3)
         ip_hdr->ip_len  = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
 
@@ -343,7 +325,6 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     }
 
     free(icmp_packet);
-    return;
 }
 
 void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *eth_hdr, uint8_t *packet, unsigned int len, struct sr_if *src_inf)
@@ -431,12 +412,3 @@ void check_longest_prefix(struct sr_rt *cur_node, uint32_t packet_dest, uint32_t
     }
     /* If the prefix doesn't match then we do nothing */
 }
-
-/* If the destinatino IP address doesn't match the router, then forward it
- Take the destination IP address, compare it to the routing table (longest prefix matching)
- If it matches some pair in the routing table
- Use the ARP cache to see if we can find the MAC address of the target IP
- If we can, we send out the packet using the target MAC address
- If we can't then we broadcast an ARP request, and do the steps above after receiving a reply (or an error if no replies after 5 attempts)
- If it doesn't match some pair in the routing table
- Send an error back to the client */
