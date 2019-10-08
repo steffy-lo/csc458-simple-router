@@ -288,13 +288,11 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     unsigned int icmp_packet_len;
     if (icmp_type == 0) {/* Echo Reply */
         icmp_packet_len = len;
-        icmp_packet = malloc(icmp_packet_len);
-        memcpy(icmp_packet, packet, icmp_packet_len);
     } else {
         icmp_packet_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
-        icmp_packet = malloc(icmp_packet_len);
-
     }
+    icmp_packet = malloc(icmp_packet_len);
+    memcpy(icmp_packet, packet, icmp_packet_len);
 
     sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *)icmp_packet;
     memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, sizeof(uint8_t)*ETHER_ADDR_LEN);
