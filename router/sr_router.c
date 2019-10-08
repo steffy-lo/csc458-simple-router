@@ -288,14 +288,15 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     unsigned int icmp_packet_len;
     if (icmp_type == 0) {/* Echo Reply */
         icmp_packet_len = len;
+        icmp_packet = malloc(icmp_packet_len);
+        memcpy(icmp_packet, packet, icmp_packet_len);
     } else {
         icmp_packet_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
         icmp_packet = malloc(icmp_packet_len);
-    }
-    icmp_packet = malloc(icmp_packet_len);
-    memcpy(icmp_packet, packet, icmp_packet_len);
 
-    sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *) icmp_packet;
+    }
+
+    sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *)icmp_packet;
     memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, sizeof(uint8_t)*ETHER_ADDR_LEN);
     memcpy(eth_hdr->ether_shost, inf->addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
     eth_hdr->ether_type = htons(ethertype_ip);
@@ -308,11 +309,11 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
     ip_hdr->ip_p = ip_protocol_icmp;
 
-    if (icmp_type != 0)
+    if (!(icmp_type == 0 || icmp_type == 11))
         ip_hdr->ip_len  = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
 
     /* Modify ICMP header */
-    if (icmp_type == 0) {
+    if (icmp_type == 0 && icmp_code == 0) /* Echo Reply */ {
         sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
         icmp_hdr->icmp_type = icmp_type;
         icmp_hdr->icmp_code = icmp_code;
@@ -335,8 +336,16 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     print_hdr_icmp(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     printf("------------------------------------------\n");
 
-    sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
+    struct sr_arpentry * entry = sr_arpcache_lookup (&sr->cache, ip_hdr->ip_src);
+    if (entry) {
+        sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
+    } else {
+        struct sr_arpreq * req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_packet, icmp_packet_len, inf->name);
+        handle_arpreq(req, sr);
+    }
+
     free(icmp_packet);
+    return;
 }
 
 void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *eth_hdr, uint8_t *packet, unsigned int len, struct sr_if *src_inf)
