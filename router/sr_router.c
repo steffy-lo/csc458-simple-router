@@ -274,7 +274,7 @@ void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, u
 			send_icmp_message(sr, packet, inf, 0, 0, len);
         }
     }
-    else if (ip_hdr->ip_p == ip)
+    else
     {
         printf("A TCP/UDP message.\n");
         /* Send ICMP type 3 code 3: Port Unreachable */
@@ -284,32 +284,50 @@ void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, u
 
 void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, uint8_t icmp_type, uint8_t icmp_code, unsigned int len)
 {
-    /* Construct ICMP Message */
-    uint8_t *icmp_packet = malloc(len);
-    memcpy(icmp_packet, packet, len);
+    uint8_t *icmp_packet;
+    unsigned int icmp_packet_len;
+    if (icmp_type == 0) {/* Echo Reply */
+        icmp_packet_len = len;
+    } else {
+        icmp_packet_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
+        icmp_packet = malloc(icmp_packet_len);
+    }
+    icmp_packet = malloc(icmp_packet_len);
+    memcpy(icmp_packet, packet, icmp_packet_len);
 
-    /* Modify Ethernet and IP header */
-    sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *)icmp_packet;
-    memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, sizeof(uint8_t) * ETHER_ADDR_LEN);
-    memcpy(eth_hdr->ether_shost, inf->addr, sizeof(uint8_t) * ETHER_ADDR_LEN);
+    sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *) icmp_packet;
+    memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, sizeof(uint8_t)*ETHER_ADDR_LEN);
+    memcpy(eth_hdr->ether_shost, inf->addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
+    eth_hdr->ether_type = htons(ethertype_ip);
 
     sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t));
-    uint32_t temp = ip_hdr->ip_src;
-    ip_hdr->ip_src = ip_hdr->ip_dst;
-    ip_hdr->ip_dst = temp;
+    ip_hdr->ip_src = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_dst;
+    ip_hdr->ip_dst = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_src;;
     ip_hdr->ip_ttl = 64;
     ip_hdr->ip_sum = 0;
     ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
+    ip_hdr->ip_p = ip_protocol_icmp;
+
+    if (icmp_type != 0)
+        ip_hdr->ip_len  = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
 
     /* Modify ICMP header */
-    sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
-    icmp_hdr->icmp_type = icmp_type;
-    icmp_hdr->icmp_code = icmp_code;
-    icmp_hdr->icmp_sum = 0;
-    if (icmp_type == 0)
+    if (icmp_type == 0) {
+        sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+        icmp_hdr->icmp_type = icmp_type;
+        icmp_hdr->icmp_code = icmp_code;
+        icmp_hdr->icmp_sum = 0;
         icmp_hdr->icmp_sum = cksum(icmp_hdr, sizeof(sr_icmp_hdr_t));
-    else if (icmp_type == 3)
+    } else {
+        sr_icmp_t3_hdr_t *icmp_hdr = (sr_icmp_t3_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+        icmp_hdr->icmp_type = icmp_type;
+        icmp_hdr->icmp_code = icmp_code;
+        icmp_hdr->icmp_sum = 0;
+        icmp_hdr->next_mtu = 0;
+        icmp_hdr->unused = 0;
+        memcpy(icmp_hdr->data, ip_hdr, ICMP_DATA_SIZE);
         icmp_hdr->icmp_sum = cksum(icmp_hdr, sizeof(sr_icmp_t3_hdr_t));
+    }
 
     printf("----------- Send ICMP Message ------------\n");
     print_hdr_eth(icmp_packet);
@@ -317,13 +335,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     print_hdr_icmp(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     printf("------------------------------------------\n");
 
-    struct sr_arpentry * entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
-    if (entry) {
-        sr_send_packet(sr, icmp_packet, len, inf->name);
-    } else {
-        struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, icmp_packet, len, inf->name);
-        handle_arpreq(req, sr);
-    }
+    sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
     free(icmp_packet);
 }
 
