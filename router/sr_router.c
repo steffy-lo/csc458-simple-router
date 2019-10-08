@@ -309,7 +309,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
     ip_hdr->ip_p = ip_protocol_icmp;
 
-    if (!(icmp_type == 0 || icmp_type == 11))
+    if (icmp_type == 3)
         ip_hdr->ip_len  = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
 
     /* Modify ICMP header */
