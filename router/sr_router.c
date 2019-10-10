@@ -149,18 +149,18 @@ void sr_handlepacket(struct sr_instance *sr,
 
         /* Check if the IP address matches the current router's IP addresses */
         struct sr_if *if_walker = sr->if_list;
+        struct sr_if *src_inf = sr_get_interface(sr, interface);
         while (if_walker)
         {
             if (if_walker->ip == ip_hdr->ip_dst)
             {
                 /* Get the struct from the name */
-                struct sr_if *src_inf = sr_get_interface(sr, interface);
                 handle_ip(sr, ip_hdr, src_inf, packet, len);
                 return;
             }
             if_walker = if_walker->next;
         }
-        forward_ip(sr, ip_hdr, eth_hdr, packet, len, sr->if_list);
+        forward_ip(sr, ip_hdr, eth_hdr, packet, len, src_inf);
     }
 
 } /* end sr_ForwardPacket */
@@ -275,10 +275,6 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     { /* Echo Reply */
         icmp_packet_len = len;
     }
-    else if (icmp_type == 3 && icmp_code == 3)
-    {
-        icmp_packet_len = sizeof(sr_ethernet_hdr_t) + 2 * sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t) + 8;
-    }
     else
     {
         icmp_packet_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
@@ -294,7 +290,6 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t));
     ip_hdr->ip_src = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_dst;
     ip_hdr->ip_dst = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_src;
-    ;
     ip_hdr->ip_ttl = 64;
     ip_hdr->ip_sum = 0;
     ip_hdr->ip_p = ip_protocol_icmp;
