@@ -305,7 +305,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
         icmp_hdr->icmp_type = icmp_type;
         icmp_hdr->icmp_code = icmp_code;
         icmp_hdr->icmp_sum = 0;
-        icmp_hdr->icmp_sum = cksum(icmp_hdr, sizeof(sr_icmp_hdr_t));
+        icmp_hdr->icmp_sum = cksum(icmp_hdr, len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t));
     }
     else
     {
