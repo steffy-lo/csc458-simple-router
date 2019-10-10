@@ -23,7 +23,6 @@
 #include "sr_arpcache.h"
 #include "sr_utils.h"
 
-
 /*---------------------------------------------------------------------
  * Method: sr_init(void)
  * Scope:  Global
@@ -78,7 +77,7 @@ void sr_handlepacket(struct sr_instance *sr,
     assert(packet);
     assert(interface);
 
-    printf("*** -> Received packet of length %d \n",len);
+    printf("*** -> Received packet of length %d \n", len);
 
     if (len < sizeof(sr_ethernet_hdr_t))
     {
@@ -97,7 +96,7 @@ void sr_handlepacket(struct sr_instance *sr,
             return;
         }
 
-		sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
+        sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
 
         printf("------------ It's an ARP Packet ----------------\n");
         print_hdr_eth(packet);
@@ -125,7 +124,7 @@ void sr_handlepacket(struct sr_instance *sr,
     else if (ethertype(packet) == ethertype_ip)
     {
         /* Handle IP Packet */
-		if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t))
+        if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t))
         {
             printf("sr_handlepacket: IP packet doesn't meet minimum length.\n");
             return;
@@ -241,22 +240,23 @@ void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, u
     {
         printf("An ICMP message.\n");
 
-		if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t)) {
-			printf("handle_ip: ICMP header doesn't meet minimum length.\n");
+        if (len < sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_hdr_t))
+        {
+            printf("handle_ip: ICMP header doesn't meet minimum length.\n");
             return;
-		}
+        }
 
-		/* ICMP header is after the IP header */
-        sr_icmp_hdr_t* icmp_hdr = (sr_icmp_hdr_t*)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+        /* ICMP header is after the IP header */
+        sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
         printf("------------ ICMP HDR ------------------\n");
         print_hdr_icmp(packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
         printf("-----------------------------------------\n");
 
-
         /* if it's an ICMP echo request, send echo reply */
-        if(icmp_hdr->icmp_type == 8) {
-			/* Construct ICMP echo reply */
-			send_icmp_message(sr, packet, inf, 0, 0, len);
+        if (icmp_hdr->icmp_type == 8)
+        {
+            /* Construct ICMP echo reply */
+            send_icmp_message(sr, packet, inf, 0, 0, len);
         }
     }
     else
@@ -271,37 +271,44 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
 {
     uint8_t *icmp_packet;
     unsigned int icmp_packet_len;
-    if (icmp_type == 0) {/* Echo Reply */
+    if (icmp_type == 0)
+    { /* Echo Reply */
         icmp_packet_len = len;
-    } else {
+    }
+    else
+    {
         icmp_packet_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
     }
     icmp_packet = malloc(icmp_packet_len);
     memcpy(icmp_packet, packet, icmp_packet_len);
 
     sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *)icmp_packet;
-    memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, sizeof(uint8_t)*ETHER_ADDR_LEN);
-    memcpy(eth_hdr->ether_shost, inf->addr, sizeof(uint8_t)*ETHER_ADDR_LEN);
+    memcpy(eth_hdr->ether_dhost, eth_hdr->ether_shost, sizeof(uint8_t) * ETHER_ADDR_LEN);
+    memcpy(eth_hdr->ether_shost, inf->addr, sizeof(uint8_t) * ETHER_ADDR_LEN);
     eth_hdr->ether_type = htons(ethertype_ip);
 
     sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t));
     ip_hdr->ip_src = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_dst;
-    ip_hdr->ip_dst = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_src;;
+    ip_hdr->ip_dst = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_src;
+    ;
     ip_hdr->ip_ttl = 64;
     ip_hdr->ip_sum = 0;
-    ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
     ip_hdr->ip_p = ip_protocol_icmp;
     if (icmp_type == 3)
-        ip_hdr->ip_len  = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
+        ip_hdr->ip_len = htons(sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t));
+    ip_hdr->ip_sum = cksum(ip_hdr, sizeof(sr_ip_hdr_t));
 
     /* Modify ICMP header */
-    if (icmp_type == 0 && icmp_code == 0) /* Echo Reply */ {
+    if (icmp_type == 0 && icmp_code == 0) /* Echo Reply */
+    {
         sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
         icmp_hdr->icmp_type = icmp_type;
         icmp_hdr->icmp_code = icmp_code;
         icmp_hdr->icmp_sum = 0;
         icmp_hdr->icmp_sum = cksum(icmp_hdr, sizeof(sr_icmp_hdr_t));
-    } else {
+    }
+    else
+    {
         sr_icmp_t3_hdr_t *icmp_hdr = (sr_icmp_t3_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
         icmp_hdr->icmp_type = icmp_type;
         icmp_hdr->icmp_code = icmp_code;
@@ -318,11 +325,14 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     print_hdr_icmp(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     printf("------------------------------------------\n");
 
-    struct sr_arpentry * entry = sr_arpcache_lookup (&sr->cache, ip_hdr->ip_src);
-    if (entry) {
+    struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
+    if (entry)
+    {
         sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
-    } else {
-        struct sr_arpreq * req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_packet, icmp_packet_len, inf->name);
+    }
+    else
+    {
+        struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_packet, icmp_packet_len, inf->name);
         handle_arpreq(req, sr);
     }
 
@@ -339,7 +349,7 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
     {
         /* Send ICMP Message Time Exceeded */
         printf("ICMP Message Time Exceeded.\n");
-		send_icmp_message(sr, packet, src_inf, 11, 0, len);
+        send_icmp_message(sr, packet, src_inf, 11, 0, len);
         return;
     }
 
@@ -386,11 +396,12 @@ void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *
             handle_arpreq(req, sr);
         }
     }
-    else {
+    else
+    {
         /* Send ICMP Net unreachable */
         printf("ICMP Net Unreachable.\n");
-		send_icmp_message(sr, packet, src_inf, 3, 0, len);
-	}
+        send_icmp_message(sr, packet, src_inf, 3, 0, len);
+    }
     /* If we get here, then matching_address was null, then we drop the packet and send an error */
 }
 
