@@ -288,7 +288,15 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     eth_hdr->ether_type = htons(ethertype_ip);
 
     sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t));
-    ip_hdr->ip_src = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_dst;
+
+    if ((icmp_type == 0 && icmp_code == 0) || (icmp_type == 3 && icmp_code == 3))
+    { /* If echo reply or port unreachable, it was meant for a router interface, so use the source destination */
+        ip_hdr->ip_src = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_dst;
+    }
+    else
+    { /* Otherwise, use any ip from the router itself */
+        ip_hdr->ip_src = (inf->ip);
+    }
     ip_hdr->ip_dst = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_src;
     ip_hdr->ip_ttl = 64;
     ip_hdr->ip_sum = 0;
