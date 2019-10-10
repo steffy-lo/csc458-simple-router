@@ -295,7 +295,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     }
     else
     { /* Otherwise, use any ip from the router itself */
-        ip_hdr->ip_src = (inf->ip);
+        ip_hdr->ip_src = inf->ip;
     }
     ip_hdr->ip_dst = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_src;
     ip_hdr->ip_ttl = 64;
