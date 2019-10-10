@@ -97,6 +97,8 @@ void sr_handlepacket(struct sr_instance *sr,
             return;
         }
 
+		sr_arp_hdr_t *arp_hdr = (sr_arp_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t));
+
         printf("------------ It's an ARP Packet ----------------\n");
         print_hdr_eth(packet);
         print_hdr_arp(packet + sizeof(sr_ethernet_hdr_t));
