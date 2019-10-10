@@ -275,6 +275,10 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     { /* Echo Reply */
         icmp_packet_len = len;
     }
+    else if (icmp_type == 3 && icmp_code == 3)
+    {
+        icmp_packet_len = sizeof(sr_ethernet_hdr_t) + 2 * sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t) + 8;
+    }
     else
     {
         icmp_packet_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
@@ -315,7 +319,10 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
         icmp_hdr->icmp_sum = 0;
         icmp_hdr->next_mtu = 0;
         icmp_hdr->unused = 0;
-        memcpy(icmp_hdr->data, ip_hdr, ICMP_DATA_SIZE);
+        /* Copy the internet header into the data */
+        memcpy(icmp_hdr->data, packet + sizeof(sr_ethernet_hdr_t), sizeof(sr_ip_hdr_t));
+        /* Copy the first 8 bytes of original datagram's data into the data */
+        memcpy(icmp_hdr->data + sizeof(sr_ip_hdr_t), packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t), 8);
         icmp_hdr->icmp_sum = cksum(icmp_hdr, sizeof(sr_icmp_t3_hdr_t));
     }
 
@@ -326,7 +333,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     printf("------------------------------------------\n");
 
     sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
-    
+
     /*struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
     if (entry)
     {
