@@ -325,7 +325,9 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     print_hdr_icmp(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     printf("------------------------------------------\n");
 
-    struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
+    sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
+    
+    /*struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
     if (entry)
     {
         sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
@@ -334,7 +336,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     {
         struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_packet, icmp_packet_len, inf->name);
         handle_arpreq(req, sr);
-    }
+    }*/
 
     free(icmp_packet);
 }
