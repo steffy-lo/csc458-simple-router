@@ -337,16 +337,17 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
 
     sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
 
-    /*struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
-    if (entry)
-    {
-        sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
+    /* Send ARP Request if it's an echo reply */
+    if (icmp_type == 0 && icmp_code == 0) {
+        struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
+        if (entry) {
+            sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
+        } else {
+            struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_packet, icmp_packet_len,
+                                                         inf->name);
+            handle_arpreq(req, sr);
+        }
     }
-    else
-    {
-        struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_packet, icmp_packet_len, inf->name);
-        handle_arpreq(req, sr);
-    }*/
 
     free(icmp_packet);
 }
