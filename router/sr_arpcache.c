@@ -24,7 +24,8 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
             printf("Resent 5 times: Send ICMP Host Unreachable.\n");
             while (queued_pkts)
             {
-                if (sr_get_interface(sr, queued_pkts->iface))
+                struct sr_if* inf = sr_get_interface(sr, queued_pkts->iface);
+                if (inf)
                     send_icmp_message(sr, queued_pkts->buf, inf, 3, 1, queued_pkts->len);  /* <- CHANGE THIS LATER ITS FOR TESTING */
                 queued_pkts = queued_pkts->next;
             }
