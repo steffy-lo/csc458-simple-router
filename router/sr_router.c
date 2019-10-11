@@ -288,6 +288,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
 
     sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(icmp_packet + sizeof(sr_ethernet_hdr_t));
 
+    /* Choose which interface to send it out on */
     if ((icmp_type == 0 && icmp_code == 0) || (icmp_type == 3 && icmp_code == 3))
     { /* If echo reply or port unreachable, it was meant for a router interface, so use the source destination */
         ip_hdr->ip_src = ((sr_ip_hdr_t *)(packet + sizeof(sr_ethernet_hdr_t)))->ip_dst;
@@ -337,16 +338,21 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     /* sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name); */
 
     /* Send ARP Request if it's an echo reply */
-    if (icmp_type == 0 && icmp_code == 0) {
-        struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
-        if (entry) {
-            sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
-        } else {
-            struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, icmp_packet, icmp_packet_len,
-                                                         inf->name);
-            handle_arpreq(req, sr);
-        }
+    /*if (icmp_type == 0 && icmp_code == 0) {*/
+    struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
+    if (entry)
+    {
+        /* We have the entry in the cache, copy the mac address in and let it go */
+        memcpy(eth_hdr->ether_dhost, entry->mac, sizeof(uint8_t) * ETHER_ADDR_LEN);
+        sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
     }
+    else
+    {
+        struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, icmp_packet, icmp_packet_len,
+                                                     inf->name);
+        handle_arpreq(req, sr);
+    }
+    /*}*/
 
     free(icmp_packet);
 }
