@@ -356,13 +356,13 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
         if (matching_address) {
             struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, matching_address);
             if (entry) {
-                sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *)packet;
+                sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *)icmp_packet;
                 memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
                 memcpy(eth_hdr->ether_shost, sr_get_interface(sr, tar_inf)->addr, ETHER_ADDR_LEN);
-                sr_send_packet(sr, packet, len, tar_inf);
+                sr_send_packet(sr, icmp_packet, icmp_packet_len, tar_inf);
                 free(entry);
             } else {
-                struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, dest, packet, len, tar_inf);
+                struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, matching_address, icmp_packet, icmp_packet_len, tar_inf);
                 handle_arpreq(req, sr);
             }
 
