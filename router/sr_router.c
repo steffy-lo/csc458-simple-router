@@ -189,13 +189,12 @@ void handle_arp(struct sr_instance *sr, sr_arp_hdr_t *arp_hdr, uint8_t *packet, 
         reply_arp_hdr->ar_hln = arp_hdr->ar_hln;
         reply_arp_hdr->ar_pln = arp_hdr->ar_pln;
         reply_arp_hdr->ar_op = htons(arp_op_reply);
-        /* set sender MAC to be interface's MAC */
+
+        /* set sender MAC to be interface's MAC and set sender IP to be interface's IP*/
         memcpy(reply_arp_hdr->ar_sha, inf->addr, ETHER_ADDR_LEN);
-        /* set sender IP to be interface's IP */
         reply_arp_hdr->ar_sip = inf->ip;
-        /* set target MAC to be the packet's sender MAC */
+        /* set target MAC to be the packet's sender MAC and set target IP to be the packet's sender IP*/
         memcpy(reply_arp_hdr->ar_tha, arp_hdr->ar_sha, ETHER_ADDR_LEN);
-        /* set target IP to be the packet's sender IP */
         reply_arp_hdr->ar_tip = arp_hdr->ar_sip;
 
         printf("------------ ARP Reply ------------------\n");
@@ -339,11 +338,11 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
 
     /* Send ARP Request if it's an echo reply */
     if (icmp_type == 0 && icmp_code == 0) {
-        struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_src);
+        struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
         if (entry) {
             sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
         } else {
-            struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_src, icmp_packet, icmp_packet_len,
+            struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, icmp_packet, icmp_packet_len,
                                                          inf->name);
             handle_arpreq(req, sr);
         }
