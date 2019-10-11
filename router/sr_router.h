@@ -71,8 +71,9 @@ void sr_handlepacket(struct sr_instance* , uint8_t * , unsigned int , char* );
 void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *inf, uint8_t icmp_type, uint8_t icmp_code, unsigned int len);
 void handle_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, struct sr_if *inf, uint8_t *packet, unsigned int len);
 void handle_arp(struct sr_instance *sr, sr_arp_hdr_t *arp_hdr, uint8_t *packet, struct sr_if *inf);
-void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, sr_ethernet_hdr_t *eth_hdr, uint8_t *packet, unsigned int len, struct sr_if *src_inf);
+void forward_ip(struct sr_instance *sr, sr_ip_hdr_t *ip_hdr, uint8_t *packet, unsigned int len, struct sr_if *src_inf);
 void check_longest_prefix(struct sr_rt *cur_node, uint32_t packet_dest, uint32_t *matching_mask, uint32_t *matching_address, char *inf);
+void handle_arpcache(struct sr_instance* sr, uint8_t * packet, unsigned int len, uint32_t dest, char* inf);
 
 /* -- sr_if.c -- */
 void sr_add_interface(struct sr_instance* , const char* );
