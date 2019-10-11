@@ -336,15 +336,36 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
 
     /* sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name); */
 
-    /* Send ARP Request if it's an echo reply */
+    /* Initiate ARP Request if it's an echo reply */
     if (icmp_type == 0 && icmp_code == 0) {
-        struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
-        if (entry) {
+        if (sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst)) {
             sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
         } else {
-            struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, icmp_packet, icmp_packet_len,
-                                                         inf->name);
+            struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, icmp_packet, icmp_packet_len, inf->name);
             handle_arpreq(req, sr);
+        }
+    }
+
+    /* Send to outgoing interface for destination host unreachable */
+    if (icmp_type == 3 && icmp_code == 1) {
+        struct sr_rt *cur_node;
+        uint32_t matching_mask = 0, matching_address;
+        char tar_inf[sr_IFACE_NAMELEN];
+        for (cur_node = sr->routing_table; cur_node; cur_node = cur_node->next)
+            check_longest_prefix(cur_node, ip_hdr->ip_dst, &matching_mask, &matching_address, tar_inf);
+        if (matching_address) {
+            struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, matching_address);
+            if (entry) {
+                sr_ethernet_hdr_t *eth_hdr = (sr_ethernet_hdr_t *)packet;
+                memcpy(eth_hdr->ether_dhost, entry->mac, ETHER_ADDR_LEN);
+                memcpy(eth_hdr->ether_shost, sr_get_interface(sr, tar_inf)->addr, ETHER_ADDR_LEN);
+                sr_send_packet(sr, packet, len, tar_inf);
+                free(entry);
+            } else {
+                struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, dest, packet, len, tar_inf);
+                handle_arpreq(req, sr);
+            }
+
         }
     }
 
