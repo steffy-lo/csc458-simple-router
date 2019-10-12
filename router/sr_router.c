@@ -213,10 +213,9 @@ void handle_arp(struct sr_instance *sr, sr_arp_hdr_t *arp_hdr, uint8_t *packet, 
         struct sr_arpreq *queued = sr_arpcache_insert(&sr->cache, arp_hdr->ar_sha, arp_hdr->ar_sip);
         if (queued)
         {
-            struct sr_packet *queued_pkts = queued->packets;
+            struct sr_packet *queued_pkts;
             /* Send outstanding packets */
-            while (queued_pkts)
-            {
+            for (queued_pkts = queued->packets; queued_pkts; queued_pkts = queued_pkts->next) {
                 struct sr_if *inf = sr_get_interface(sr, queued_pkts->iface);
                 if (inf)
                 {
