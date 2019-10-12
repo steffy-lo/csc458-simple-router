@@ -274,7 +274,7 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
         icmp_packet_len = len;
     else
         icmp_packet_len = sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t) + sizeof(sr_icmp_t3_hdr_t);
-    
+
     icmp_packet = malloc(icmp_packet_len);
     memcpy(icmp_packet, packet, icmp_packet_len);
 
@@ -332,14 +332,9 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     print_hdr_icmp(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     printf("------------------------------------------\n");
 
-    /* sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name); */
+    forward_ip(sr, ip_hdr, eth_hdr, icmp_packet, icmp_packet_len, inf);
 
-    /* Send ARP Request if it's an echo reply */
-    /*if (icmp_type == 0 && icmp_code == 0) {*/
-
-    /*}*/
-
-	if (icmp_type == 0 && icmp_code == 0) { 
+	if (icmp_type == 0 && icmp_code == 0) {
 		struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
 		if (entry)
 		{

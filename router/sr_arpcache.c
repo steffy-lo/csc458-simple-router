@@ -69,6 +69,7 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
                 printf("send ARP request.\n");
                 sr_send_packet(sr, arp_req, len, inf->name);
                 free(arp_req);
+                time(&now);
                 req->sent = now;
                 req->times_sent++;
             }
