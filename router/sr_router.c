@@ -335,24 +335,6 @@ void send_icmp_message(struct sr_instance *sr, uint8_t *packet, struct sr_if *in
     print_hdr_icmp(icmp_packet + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
     printf("------------------------------------------\n");
 
-    /* sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name); */
-
-    /* Send ARP Request if it's an echo reply */
-    /*if (icmp_type == 0 && icmp_code == 0) {
-    struct sr_arpentry *entry = sr_arpcache_lookup(&sr->cache, ip_hdr->ip_dst);
-    if (entry)
-    {
-        /* We have the entry in the cache, copy the mac address in and let it go
-        memcpy(eth_hdr->ether_dhost, entry->mac, sizeof(uint8_t) * ETHER_ADDR_LEN);
-        sr_send_packet(sr, icmp_packet, icmp_packet_len, inf->name);
-    }
-    else
-    {
-        struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ip_hdr->ip_dst, icmp_packet, icmp_packet_len,
-                                                     inf->name);
-        handle_arpreq(req, sr);
-    }
-    */
     forward_ip(sr, ip_hdr, eth_hdr, icmp_packet, icmp_packet_len, inf);
 
     free(icmp_packet);

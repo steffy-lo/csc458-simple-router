@@ -16,7 +16,7 @@
 void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
 	time_t now;
     time(&now);
-    if (difftime(now, req->sent) > 1.0) {
+    if (difftime(now, req->sent) >= 1.0) {
         printf("Handling ARP requests...\n");
 		if (req->times_sent >= 5) {
             struct sr_packet *queued_pkts = req->packets;
@@ -26,7 +26,7 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
             {
                 struct sr_if* inf = sr_get_interface(sr, queued_pkts->iface);
                 if (inf)
-                    send_icmp_message(sr, queued_pkts->buf, inf, 3, 1, queued_pkts->len);  /* <- CHANGE THIS LATER ITS FOR TESTING */
+                    send_icmp_message(sr, queued_pkts->buf, inf, 3, 1, queued_pkts->len);
                 queued_pkts = queued_pkts->next;
             }
             sr_arpreq_destroy(&sr->cache, req);
@@ -69,7 +69,6 @@ void handle_arpreq(struct sr_arpreq *req, struct sr_instance *sr) {
                 printf("send ARP request.\n");
                 sr_send_packet(sr, arp_req, len, inf->name);
                 free(arp_req);
-                time(&now);
                 req->sent = now;
                 req->times_sent++;
             }
